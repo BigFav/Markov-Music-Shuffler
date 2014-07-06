@@ -82,7 +82,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         JLabel instructions4 = new JLabel();
         panel1.setLayout(new GridLayout(4,1));
         instructions1.setText("  Instructions for formating input playlist");
-        instructions2.setText("  Step 1: Sort your library/playlist by Genre");
+        instructions2.setText("  Step 1: Sort your playlist by Genre");
         instructions3.setText("  Step 2: Click File->Library->Export Playlist...");
         instructions4.setText("  Step 3: For playlist, save type as text file."); 
         panel1.add(instructions1);
@@ -207,7 +207,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         }
         int i = 1;
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(exportedPlaylist), "UTF-16"))) {
-            br.readLine();												//remove top line w/ categories
+            br.readLine();											//remove top line w/ categories
             for (String line; (line = br.readLine()) != null; ++i) {
                 int j = 0;
                 StringBuilder song = new StringBuilder();
@@ -285,7 +285,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                 read(pathTextField.getText());
                 if ((num_songs > ogPlaylist.size()) ||
                         (num_songs <= 0)) {
-                    String message = "Invalid number! Must be equal or less than the number of songs in your library/playlist and greater than 0.";
+                    String message = "Invalid number! Must be equal or less than the number of songs in your playlist and greater than 0.";
                     JOptionPane.showMessageDialog(this, message, "Invalid Number of Songs", JOptionPane.ERROR_MESSAGE);
                     return ;
                 }
@@ -313,11 +313,11 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                 Iterator<String> genreItr = genres.keySet().iterator();
                 if (startG.equals("")) {
                     index = 0;
-                    startG = genreItr.next();				//Pick a genre, if one wasn't given
+                    startG = genreItr.next();				                            //Pick a genre, if one wasn't given
                 }
                 if (genres.containsKey(startG)) {
                     Integer[] end = (Integer[])(genres.values().toArray(new Integer[markov.length]));
-                    Arrays.sort(end);						//Assuming playlist was sorted by genre
+                    Arrays.sort(end);						                            //Assuming playlist was sorted by genre
 
                     //find the index of user inputted genre
                     if (index != 0) {
