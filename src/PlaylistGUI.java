@@ -18,6 +18,7 @@ import java.awt.GridLayout;
 import java.awt.event.*;
 import javax.swing.*;
 
+
 @SuppressWarnings("serial")
 public class PlaylistGUI extends JFrame implements ActionListener {
     JFileChooser fc;
@@ -36,7 +37,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
     List<String> ogPlaylist;
     List<Integer> usedIndex;
     Map<String, Integer> genres;
-    Map<String, Queue<MP3>> playingMP3s;	//bootleg multimap
+    Map<String, Queue<MP3>> playingMP3s;    //bootleg multimap
     double markov[][];
     int numGenres;
 
@@ -82,7 +83,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         JLabel instructions4 = new JLabel();
         panel1.setLayout(new GridLayout(4,1));
         instructions1.setText("  Instructions for formating input playlist");
-        instructions2.setText("  Step 1: Sort your playlist by Genre");
+        instructions2.setText("  Step 1: Sort your playlist by genre.");
         instructions3.setText("  Step 2: Click File->Library->Export Playlist...");
         instructions4.setText("  Step 3: For playlist, save type as text file."); 
         panel1.add(instructions1);
@@ -93,7 +94,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         Panel2.add(pathTextField);
         Panel2.add(browseButton);
         JLabel genre = new JLabel();
-        genre.setText("Please enter a genre from your playlist/library.");
+        genre.setText("Please enter a genre from your playlist.");
         Panel2.add(genre);
         Panel2.add(startGenre);
         JLabel num = new JLabel();
@@ -179,7 +180,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         String path = songPaths.get(index);
         if (playingMP3s.containsKey(path)) {
             Queue<MP3> sameSongs = playingMP3s.get(path);
-            sameSongs.peek().close();	//close 1st, in case of system failure
+            sameSongs.peek().close();    //close 1st, in case of system failure
             sameSongs.remove();
             if (sameSongs.isEmpty()) {
                 playingMP3s.remove(path);
@@ -194,7 +195,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                 song.close();
             }
         }
-        playingMP3s = new HashMap<String, Queue<MP3>>();	// Way faster than clear(), that's OOP for you.
+        playingMP3s = new HashMap<String, Queue<MP3>>();    // Way faster than clear(), that's OOP for you.
     }
 
     /* Reads exported playlist file. */
@@ -207,22 +208,22 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         }
         int i = 1;
         try (BufferedReader br = new BufferedReader(new InputStreamReader(new FileInputStream(exportedPlaylist), "UTF-16"))) {
-            br.readLine();											//remove top line w/ categories
+            br.readLine();                                              //remove top line w/ categories
             for (String line; (line = br.readLine()) != null; ++i) {
                 int j = 0;
                 StringBuilder song = new StringBuilder();
                 for (String lineSplit : line.split("\\t")) {
                     switch (j++) {
-                    case 0:	 song.append(lineSplit).append(" ");	//song title
-                    song.append("by: ");
-                    break;
-                    case 1:	 song.append(lineSplit).append(" ");	//artist
-                    song.append("     ");
-                    break;
-                    case 5:  song.append(lineSplit).append(" ");	//genre
-                    genres.put(lineSplit, i);
-                    break;
-                    case 26: songPaths.add(lineSplit);				//filepath
+                        case 0:  song.append(lineSplit).append(" ");    //song title
+                                 song.append("by: ");
+                                 break;
+                        case 1:  song.append(lineSplit).append(" ");    //artist
+                                 song.append("     ");
+                                 break;
+                        case 5:  song.append(lineSplit).append(" ");    //genre
+                                 genres.put(lineSplit, i);
+                                 break;
+                        case 26: songPaths.add(lineSplit);              //filepath
                     }
                 }
                 //Compiles a list of all the songs in original playlist
@@ -232,7 +233,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         myShuffle.setModel(songs);
     }
 
-    /* Checks if the genre has any songs not in the shuffle */
+    /* Checks if the genre has any songs not in the shuffle. */
     public void genreCheck(int index, Integer[] end, int genreIndex) {
         int top;
         int bot = 0;
@@ -247,7 +248,7 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         }
 
         --numGenres;
-        //Distribute probability of genre with no songs left
+        // Distribute probability of genre with no songs left
         for (int i = 0; i < markov.length; ++i) {
             int numEmptyGenres = 1;
             for (int k = 0; k < markov.length; ++k) {
@@ -313,11 +314,11 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                 Iterator<String> genreItr = genres.keySet().iterator();
                 if (startG.equals("")) {
                     index = 0;
-                    startG = genreItr.next();				                            //Pick a genre, if one wasn't given
+                    startG = genreItr.next();                                           //Pick a genre, if one wasn't given
                 }
                 if (genres.containsKey(startG)) {
                     Integer[] end = (Integer[])(genres.values().toArray(new Integer[markov.length]));
-                    Arrays.sort(end);						                            //Assuming playlist was sorted by genre
+                    Arrays.sort(end);                                                   //Assuming playlist was sorted by genre
 
                     //find the index of user inputted genre
                     if (index != 0) {
@@ -341,9 +342,9 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                                     }
                                 }
                                 int playlistIndex = unusedIndex.get(rand.nextInt(unusedIndex.size()));
-                                usedIndex.add(playlistIndex); 						    //"pick" song from genre (use index)
-                                listModel.addElement(ogPlaylist.get(playlistIndex));	//map GUI index to data structure index
-                                genreCheck(playlistIndex, end, i); 				        //checks if a genre has been entirely used
+                                usedIndex.add(playlistIndex);                           //"pick" song from genre (use index)
+                                listModel.addElement(ogPlaylist.get(playlistIndex));    //map GUI index to data structure index
+                                genreCheck(playlistIndex, end, i);                      //checks if a genre has been entirely used
                                 index = i;
                                 ++q;
                                 break;
