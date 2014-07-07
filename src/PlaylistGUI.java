@@ -39,17 +39,16 @@ public class PlaylistGUI extends JFrame implements ActionListener {
     Map<String, Integer> genres;
     Map<String, Queue<MP3>> playingMP3s;    //bootleg multimap
     double markov[][];
-    int numGenres;
 
     public PlaylistGUI() {
         initComponents();
     }
 
     private void initComponents() {
-        pathTextField = new JTextField(35);
-        startGenre = new JTextField(10);
-        listLength = new JTextField(5);
         fc = new JFileChooser();
+        listLength = new JTextField(5);
+        startGenre = new JTextField(10);
+        pathTextField = new JTextField(35);       
         browseButton = new JButton("Browse...");
         browseButton.addActionListener(this);
         shuffleButton = new JButton("Shuffle");
@@ -233,42 +232,6 @@ public class PlaylistGUI extends JFrame implements ActionListener {
         myShuffle.setModel(songs);
     }
 
-    /* Checks if the genre has any songs not in the shuffle. */
-    public void genreCheck(int index, Integer[] end, int genreIndex) {
-        int top;
-        int bot = 0;
-        if (genreIndex != 0) {
-            bot = end[genreIndex-1];
-        }
-        top = end[genreIndex];
-        for (; bot < top; ++bot) {
-            if (!usedIndex.contains(bot)) {
-                return ;
-            }
-        }
-
-        --numGenres;
-        // Distribute probability of genre with no songs left
-        for (int i = 0; i < markov.length; ++i) {
-            int numEmptyGenres = 1;
-            for (int k = 0; k < markov.length; ++k) {
-                if (markov[i][k] == 0) {
-                    ++numEmptyGenres;
-                }
-            }
-            double probSplit = markov[i][genreIndex] / (markov.length - numEmptyGenres);
-            for (int k = 0; k < markov.length; ++k) {
-                if (k == genreIndex) {
-                    markov[i][k] = 0.0;
-                } else {
-                    if (markov[i][k] != 0.0) {
-                        markov[i][k] += probSplit;
-                    }
-                }
-            }
-        }
-    }
-
     /* Searches the spreadsheet, applies Markov Chain, and displays in GUI. */
     public void shuffleSongs() {
         int num_songs;
@@ -325,7 +288,6 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                         for (index = 0; !startG.equals(genreItr.next()); ++index);
                     }
 
-                    numGenres = end.length;
                     DefaultListModel<String> listModel = new DefaultListModel<String>();
                     // Creates the shuffle
                     for (int q = 0; q < num_songs;) {
@@ -344,7 +306,25 @@ public class PlaylistGUI extends JFrame implements ActionListener {
                                 int playlistIndex = unusedIndex.get(rand.nextInt(unusedIndex.size()));
                                 usedIndex.add(playlistIndex);                           //"pick" song from genre (use index)
                                 listModel.addElement(ogPlaylist.get(playlistIndex));    //map GUI index to data structure index
-                                genreCheck(playlistIndex, end, i);                      //checks if a genre has been entirely used
+                                if (unusedIndex.size() == 1) {
+                                    // Distribute probability of genre with no songs left
+                                    for (int j = 0; j < markov.length; ++j) {
+                                        int numEmptyGenres = 1;
+                                        for (int k = 0; k < markov.length; ++k) {
+                                            if (markov[j][k] == 0) {
+                                                ++numEmptyGenres;
+                                            }
+                                        }
+                                        double probSplit = markov[j][i] / (markov.length - numEmptyGenres);
+                                        for (int k = 0; k < markov.length; ++k) {
+                                            if (k == i) {
+                                                markov[j][k] = 0.0;
+                                            } else if (markov[j][k] != 0.0) {
+                                                markov[j][k] += probSplit;
+                                            }
+                                        }
+                                    }
+                                }
                                 index = i;
                                 ++q;
                                 break;
