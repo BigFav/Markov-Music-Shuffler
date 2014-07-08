@@ -333,21 +333,23 @@ final public class PlaylistGUI extends JFrame {
                     // Map GUI index to songPath structure index
                     listModel.addElement(ogPlaylist.get(playlistIndex));    
 
-                    // Distribute probability of genre with no songs left
-                    for (int j = 0; j < markov.length; ++j) {
-                        int emptyGenres = 1;
-                        for (int k = 0; k < markov.length; ++k) {
-                            if (markov[j][k] == 0) {
-                                ++emptyGenres;
+                    if (unusedIndex.size() == 1) {
+                        // Distribute probability of genre with no songs left
+                        for (int j = 0; j < markov.length; ++j) {
+                            int emptyGenres = 1;
+                            for (int k = 0; k < markov.length; ++k) {
+                                if (markov[j][k] == 0) {
+                                    ++emptyGenres;
+                                }
                             }
-                        }
-                        final double probSplit = markov[j][i] /
-                                                    (markov.length-emptyGenres);
-                        for (int k = 0; k < markov.length; ++k) {
-                            if (k == i) {
-                                markov[j][k] = 0.0;
-                            } else if (markov[j][k] != 0.0) {
-                                markov[j][k] += probSplit;
+                            final double probSplit = markov[j][i] /
+                                                      (markov.length-emptyGenres);
+                            for (int k = 0; k < markov.length; ++k) {
+                                if (k == i) {
+                                    markov[j][k] = 0.0;
+                                } else if (markov[j][k] != 0.0) {
+                                    markov[j][k] += probSplit;
+                                }
                             }
                         }
                     }
