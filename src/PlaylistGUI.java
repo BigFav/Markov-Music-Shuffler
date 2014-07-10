@@ -1,8 +1,10 @@
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.InputStreamReader;
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Map;
@@ -17,6 +19,7 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.*;
 import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
 
 
 /**
@@ -43,6 +46,9 @@ final public class PlaylistGUI extends JFrame {
 
     final private void initComponents() {
         final JFileChooser fc = new JFileChooser();
+        fc.setFileFilter(new FileNameExtensionFilter(
+                            "Normal text file (*.txt)", "txt"));
+
         final JTextField listLength = new JTextField(5);
         final JTextField startGenre = new JTextField(10);
         final JTextField pathTextField = new JTextField(35);
@@ -113,7 +119,7 @@ final public class PlaylistGUI extends JFrame {
                 int index = myShuffle.getSelectedIndex();
                 if (index == -1) {
                     String message = "No song has been selected. " +
-                                     "Please select one before playing.";
+                                     "Please select one before stopping.";
                     JOptionPane.showMessageDialog(PlaylistGUI.this, message,
                                                   "No Song Selected",
                                                   JOptionPane.ERROR_MESSAGE);
@@ -207,12 +213,11 @@ final public class PlaylistGUI extends JFrame {
                 song.close();
             }
         }
-        // Way faster than clear(), that's OOP for you.
         playingMP3s = new HashMap<String, Queue<MP3>>();
     }
 
     /* Reads exported playlist file. */
-    final public void read(String exportedPlaylist) throws IOException {
+    final public void read(String exportedPlaylist) {
         if (!ogPlaylist.isEmpty()) {
             songPaths = new ArrayList<String>();
             ogPlaylist = new ArrayList<String>();
@@ -241,29 +246,35 @@ final public class PlaylistGUI extends JFrame {
                 //Compiles a list of all the songs in original playlist
                 ogPlaylist.add(song.toString());
             }
+        } catch (UnsupportedEncodingException e) {
+            String message = "Did you properly save/select the playlist? " +
+                             "Maybe iTunes has updated.";
+            JOptionPane.showMessageDialog(this, message,
+                                          "Bad File Format",
+                                          JOptionPane.ERROR_MESSAGE);
+            return ;
+        } catch (FileNotFoundException e) {
+            String message = "No file selected.";
+            JOptionPane.showMessageDialog(this, message, "Invalid Path",
+                                          JOptionPane.ERROR_MESSAGE);
+            return ;
+        } catch (IOException e) {
+            // Not really sure what else to do, doesn't cause a crash
+            e.printStackTrace();
         }
     }
 
     /* Reads exported playlist, applies Markov Chain, and displays in GUI. */
     final public void shuffleSongs(int num_songs,
                                        String pathTextField, String startG) {
-        File exportedPlaylist = new File(pathTextField);
-        if ((exportedPlaylist == null) || !exportedPlaylist.isFile()) {
-            String message = "Invalid file type or no file selected.";
-            JOptionPane.showMessageDialog(this, message, "Invalid Path",
-                                          JOptionPane.ERROR_MESSAGE);
-            return ;
-        }
-        try {
-            read(pathTextField);
-        } catch(IOException q) {
-            q.printStackTrace();
-        }
+        read(pathTextField);
         if ((num_songs > ogPlaylist.size()) ||
                 (num_songs <= 0)) {
-            String message = "Invalid number! Must be equal or less " +
-                             "than the number of songs in your " +
-                             "playlist and greater than 0.";
+            String message = "Invalid number! Must be equal or less than " +
+                             "the number of songs in your playlist and " +
+                             "greater than 0. May also be a file format " +
+                             "problem, try re-exporting playlist if " +
+                             "confident that the number is correct.";
             JOptionPane.showMessageDialog(this, message,
                                           "Invalid Number of Songs",
                                           JOptionPane.ERROR_MESSAGE);
@@ -304,7 +315,7 @@ final public class PlaylistGUI extends JFrame {
         }
 
         final Integer[] end = genres.values().toArray(new Integer[markov.length]);
-        Arrays.sort(end);   // Assuming playlist is sorted by genre
+        Arrays.sort(end);               // Assuming playlist is sorted by genre
 
         //find the index of user inputted genre
         if (index != 0) {
@@ -313,7 +324,7 @@ final public class PlaylistGUI extends JFrame {
 
         final DefaultListModel<String> listModel = new DefaultListModel<String>();
         // Creates the shuffle
-        for (int q = 0; q < num_songs;) {
+        for (int q = 0, emptyGenres = 0; q < num_songs;) {
             double acc = 0.0;
             final double randDouble = rand.nextDouble();
             for (int i = 0; i < end.length; ++i) {
@@ -333,17 +344,12 @@ final public class PlaylistGUI extends JFrame {
                     // Map GUI index to songPath structure index
                     listModel.addElement(ogPlaylist.get(playlistIndex));    
 
+                    // Distribute probability of genre with no songs left
                     if (unusedIndex.size() == 1) {
-                        // Distribute probability of genre with no songs left
+                        ++emptyGenres;
                         for (int j = 0; j < markov.length; ++j) {
-                            int emptyGenres = 1;
-                            for (int k = 0; k < markov.length; ++k) {
-                                if (markov[j][k] == 0) {
-                                    ++emptyGenres;
-                                }
-                            }
                             final double probSplit = markov[j][i] /
-                                                      (markov.length-emptyGenres);
+                                                        (markov.length-emptyGenres);
                             for (int k = 0; k < markov.length; ++k) {
                                 if (k == i) {
                                     markov[j][k] = 0.0;
