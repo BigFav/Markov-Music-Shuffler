@@ -5,7 +5,7 @@ I utilize the
 <a href="http://www.javazoom.net/javalayer/sources.html">JLayer MP3 library</a>
 in order to play the MP3s; more on this can be seen in the MP3.java file.
 
-## What it should look like
+## What it Should Look Like
 
 <img src="playlist_screencap.png" alt="Example Invocation" />
 

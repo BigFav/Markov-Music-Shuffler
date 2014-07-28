@@ -19,11 +19,9 @@ import java.awt.Dimension;
 import java.awt.GridLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
-
 import javax.swing.*;
 import javax.swing.filechooser.FileNameExtensionFilter;
 
-// TODO add instruction line about Markov chain
 /**
  * Creates a GUI that takes in an exported iTunes playlist, number of
  * songs, and an optional genre to start the Markov chain with in order
