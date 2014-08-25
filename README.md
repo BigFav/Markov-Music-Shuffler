@@ -19,3 +19,7 @@ in order to play the MP3s; more on this can be seen in the MP3.java file.
 * Blend Play: Same as play except, any playing songs are not stopped.
 * Stop: Stops the selected song.
 * Stop All: Stops all currently playing songs.
+* Previous: Plays the previous song in the shuffle.
+* Next: Plays the next song in the shuffle.
+* Continuous Play: Plays the shuffle songs in sequence, one after the other.
+* Repeat: Repeats the song.
