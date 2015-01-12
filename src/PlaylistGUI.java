@@ -109,7 +109,7 @@ final public class PlaylistGUI extends JFrame {
                     return ;
                 }
 
-                synchronized (this) {
+                synchronized (PlaylistGUI.this) {
                     playButton.setEnabled(true);
                     blendButton.setEnabled(true);
                     stopButton.setEnabled(true);
@@ -165,7 +165,7 @@ final public class PlaylistGUI extends JFrame {
                     return ;
                 }
 
-                synchronized (this) {
+                synchronized (PlaylistGUI.this) {
                     if (multimap_size.get() > 0) {
                         repeat.setEnabled(false);
                         repeat.setSelected(false);
