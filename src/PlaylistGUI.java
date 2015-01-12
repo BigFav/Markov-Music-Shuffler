@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Queue;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Random;
 import java.awt.BorderLayout;
@@ -41,7 +42,7 @@ final public class PlaylistGUI extends JFrame {
     private List<Integer> usedIndices;
     private Map<String, Integer> genres;
     private Map<String, Queue<MP3>> playingMP3s;    // Bootleg multimap
-    private int multimap_size;
+    private AtomicInteger multimap_size;
     private final JButton next_button = new JButton("Next");
     private final JButton prev_button = new JButton("Previous");
     private final JCheckBox repeat = new JCheckBox("Repeat");
@@ -53,7 +54,7 @@ final public class PlaylistGUI extends JFrame {
         usedIndices = new ArrayList<Integer>();
         genres = new HashMap<String, Integer>();
         playingMP3s = Collections.synchronizedMap(new HashMap<String, Queue<MP3>>());
-        multimap_size = 0;
+        multimap_size = new AtomicInteger();
 
         initComponents();
     }
@@ -108,21 +109,25 @@ final public class PlaylistGUI extends JFrame {
                     return ;
                 }
 
-                playButton.setEnabled(true);
-                blendButton.setEnabled(true);
-                stopButton.setEnabled(true);
-                stopAllButton.setEnabled(true);
-                repeat.setEnabled(true);
-                if (multimap_size == 0) {
-                    cont_play.setEnabled(true);
-                } else {
-                    cont_play.setEnabled(false);
-                    cont_play.setSelected(false);
+                synchronized (this) {
+                    playButton.setEnabled(true);
+                    blendButton.setEnabled(true);
+                    stopButton.setEnabled(true);
+                    stopAllButton.setEnabled(true);
+                    if (multimap_size.get() == 0) {
+                        cont_play.setEnabled(true);
+                        repeat.setEnabled(true);
+                    } else {
+                        cont_play.setEnabled(false);
+                        cont_play.setSelected(false);
+                        repeat.setEnabled(false);
+                        repeat.setSelected(false);
+                    }
+                    prev_button.setEnabled(false);
+                    next_button.setEnabled(false);
+                    shuffleSongs(playlistPathField.getText(), startGenre.getText(),
+                                 markovPathField.getText(), num_songs);                
                 }
-                prev_button.setEnabled(false);
-                next_button.setEnabled(false);
-                shuffleSongs(playlistPathField.getText(), startGenre.getText(),
-                             markovPathField.getText(), num_songs);
             }
         });
 
@@ -160,18 +165,20 @@ final public class PlaylistGUI extends JFrame {
                     return ;
                 }
 
-                if (multimap_size > 0) {
-                    repeat.setEnabled(false);
-                    repeat.setSelected(false);
-                    cont_play.setEnabled(false);
-                    cont_play.setSelected(false);
-                    prev_button.setEnabled(false);
-                    next_button.setEnabled(false);
-                } else {
-                    prev_button.setEnabled(index > 0);
-                    next_button.setEnabled(index < usedIndices.size() - 1);
-                }
-                playSong(songPaths.get(usedIndices.get(index)), index);
+                synchronized (this) {
+                    if (multimap_size.get() > 0) {
+                        repeat.setEnabled(false);
+                        repeat.setSelected(false);
+                        cont_play.setEnabled(false);
+                        cont_play.setSelected(false);
+                        prev_button.setEnabled(false);
+                        next_button.setEnabled(false);
+                    } else {
+                        prev_button.setEnabled(index > 0);
+                        next_button.setEnabled(index < usedIndices.size() - 1);
+                    }
+                    playSong(songPaths.get(usedIndices.get(index)), index);
+                }                
             }
         });
 
@@ -211,14 +218,14 @@ final public class PlaylistGUI extends JFrame {
                 current_song.close();
                 playingMP3s = Collections.synchronizedMap(
                                   new HashMap<String, Queue<MP3>>());
-                multimap_size = 0;
+                multimap_size = new AtomicInteger();
                 prev_button.setEnabled(prev_index > 0);
                 next_button.setEnabled(prev_index < usedIndices.size() - 1);
                 playSong(songPaths.get(usedIndices.get(prev_index)), prev_index);
                 myShuffle.setSelectedIndex(prev_index);
             }
         });
-        
+
         next_button.setEnabled(false);
         next_button.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
@@ -227,7 +234,7 @@ final public class PlaylistGUI extends JFrame {
                 current_song.close();
                 playingMP3s = Collections.synchronizedMap(
                                   new HashMap<String, Queue<MP3>>());
-                multimap_size = 0;
+                multimap_size = new AtomicInteger();
                 prev_button.setEnabled(next_index > 0);
                 next_button.setEnabled(next_index < usedIndices.size() - 1);
                 playSong(songPaths.get(usedIndices.get(next_index)), next_index);
@@ -298,7 +305,7 @@ final public class PlaylistGUI extends JFrame {
     }
 
     /* Series of getters and setters. */
-    final public boolean isRepeatSelected() {
+    final public synchronized boolean isRepeatSelected() {
         return repeat.isSelected();
     }
 
@@ -331,31 +338,32 @@ final public class PlaylistGUI extends JFrame {
             playingMP3s.put(path, sameSong);
         }
         sameSong.add(newmp3);
-        ++multimap_size;
+        multimap_size.getAndIncrement();
         newmp3.play(this);
     }
 
     /* Stops one song. If the selected song to stop has multiple
      * instances playing, stop the least recent. Runtime: O(1). 
      */
-    final public void closeSong(final String path) {
+    final public synchronized void closeSong(final String path) {
         if (playingMP3s.containsKey(path)) {
             final Queue<MP3> sameSongs = playingMP3s.get(path);
-            sameSongs.remove().close();
+            MP3 song = sameSongs.remove();
+            song.close();
             if (sameSongs.isEmpty()) {
                 playingMP3s.remove(path);
             }
 
-            switch (--multimap_size) {
-                case 0: prev_button.setEnabled(false);
+            switch (multimap_size.getAndDecrement()) {
+                case 1: prev_button.setEnabled(false);
                         next_button.setEnabled(false);
                         repeat.setEnabled(true);
                         cont_play.setEnabled(true);
                         return ;
-                case 1: repeat.setEnabled(true);
+                case 2: repeat.setEnabled(true);
                         cont_play.setEnabled(true);
-                        prev_button.setEnabled(true);
-                        next_button.setEnabled(true);
+                        prev_button.setEnabled(song.shuffle_index > 0);
+                        next_button.setEnabled(song.shuffle_index < usedIndices.size() - 1);
             }
         }
     }
@@ -368,7 +376,7 @@ final public class PlaylistGUI extends JFrame {
             }
         }
         playingMP3s = Collections.synchronizedMap(new HashMap<String, Queue<MP3>>());
-        multimap_size = 0;
+        multimap_size = new AtomicInteger();
     }
 
     /* Reads exported playlist file. */
