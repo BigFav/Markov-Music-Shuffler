@@ -4,6 +4,7 @@ This creates a music shuffle based on a Markov chain over the genres.
 I utilize the
 <a href="http://www.javazoom.net/javalayer/sources.html">JLayer MP3 library</a>
 in order to play the MP3s; more on this can be seen in the MP3.java file.
+Requires iTunes of some sort; the instructions pertain to an iTunes playlist.
 
 ## What it Should Look Like
 

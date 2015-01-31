@@ -259,7 +259,7 @@ final public class PlaylistGUI extends JFrame {
         // For layout purposes, put the buttons in a separate panel
         JPanel topPanel = new JPanel(new GridLayout(6,1));
         topPanel.add(new JLabel("  Instructions for formating input playlist"));
-        topPanel.add(new JLabel("  Step 1: Sort your playlist by genre."));
+        topPanel.add(new JLabel("  Step 1: Sort your iTunes playlist by genre."));
         topPanel.add(new JLabel("  Step 2: Right-click the playlist, then Export..."));
         topPanel.add(new JLabel("  Step 3: Save as a text file."));
         topPanel.add(new JLabel("  Step 4: Save Markov chain with the genre " +
