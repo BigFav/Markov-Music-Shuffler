@@ -59,15 +59,18 @@ public class MP3 {
                         if (gui.isRepeatSelected()) {
                             play(gui);
                         } else {
-                            gui.closeSong(filename);
+                            synchronized (gui) {
+                                if (!gui.closeSong(filename)) {
+                                    return ;
+                                }
 
-                            // If cont_play is checked, play and highlight next song
-                            final int num_shuffle_songs = gui.numShuffleSongs() - 1;
-                            if ((shuffle_index++ < num_shuffle_songs) &&
-                                    gui.isContPlaySelected()) {
-                                gui.setNextButtonEnabled(shuffle_index < num_shuffle_songs);
-                                gui.playSong(gui.getSongPath(shuffle_index), shuffle_index);
-                                gui.setShuffleSelect(shuffle_index);
+                                // If cont_play is checked, play and highlight next song
+                                final int num_shuffle_songs = gui.numShuffleSongs() - 1;
+                                if ((shuffle_index++ < num_shuffle_songs) &&
+                                        gui.isContPlaySelected()) {
+                                    gui.playSong(gui.getSongPath(shuffle_index), shuffle_index);
+                                    gui.setShuffleSelect(shuffle_index);
+                                }
                             }
                         }
                     }

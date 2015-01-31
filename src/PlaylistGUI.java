@@ -7,14 +7,12 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.Iterator;
+import java.util.Queue;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.Queue;
-import java.util.concurrent.atomic.AtomicInteger;
-import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.Random;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
@@ -42,7 +40,8 @@ final public class PlaylistGUI extends JFrame {
     private List<Integer> usedIndices;
     private Map<String, Integer> genres;
     private Map<String, Queue<MP3>> playingMP3s;    // Bootleg multimap
-    private AtomicInteger multimap_size;
+    private int multimap_size;
+    private boolean wasShuffled;
     private final JButton next_button = new JButton("Next");
     private final JButton prev_button = new JButton("Previous");
     private final JCheckBox repeat = new JCheckBox("Repeat");
@@ -53,8 +52,9 @@ final public class PlaylistGUI extends JFrame {
         ogPlaylist = new ArrayList<String>();
         usedIndices = new ArrayList<Integer>();
         genres = new HashMap<String, Integer>();
-        playingMP3s = Collections.synchronizedMap(new HashMap<String, Queue<MP3>>());
-        multimap_size = new AtomicInteger();
+        playingMP3s = new HashMap<String, Queue<MP3>>();
+        multimap_size = 0;
+        wasShuffled = false;
 
         initComponents();
     }
@@ -109,15 +109,16 @@ final public class PlaylistGUI extends JFrame {
                     return ;
                 }
 
+                playButton.setEnabled(true);
+                blendButton.setEnabled(true);
+                stopButton.setEnabled(true);
+                stopAllButton.setEnabled(true);
                 synchronized (PlaylistGUI.this) {
-                    playButton.setEnabled(true);
-                    blendButton.setEnabled(true);
-                    stopButton.setEnabled(true);
-                    stopAllButton.setEnabled(true);
-                    if (multimap_size.get() == 0) {
+                    if (multimap_size == 0) {
                         cont_play.setEnabled(true);
                         repeat.setEnabled(true);
                     } else {
+                        wasShuffled = true;
                         cont_play.setEnabled(false);
                         cont_play.setSelected(false);
                         repeat.setEnabled(false);
@@ -126,7 +127,7 @@ final public class PlaylistGUI extends JFrame {
                     prev_button.setEnabled(false);
                     next_button.setEnabled(false);
                     shuffleSongs(playlistPathField.getText(), startGenre.getText(),
-                                 markovPathField.getText(), num_songs);                
+                                 markovPathField.getText(), num_songs);
                 }
             }
         });
@@ -134,7 +135,7 @@ final public class PlaylistGUI extends JFrame {
         playButton.setEnabled(false);
         playButton.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
-                final int index = myShuffle.getSelectedIndex();
+                final int index = getShuffleIndex(myShuffle);
                 if (index == -1) {
                     String message = "No song has been selected. " +
                                      "Please select one before playing.";
@@ -145,9 +146,6 @@ final public class PlaylistGUI extends JFrame {
                 }
 
                 closeSongs();
-                cont_play.setEnabled(true);
-                prev_button.setEnabled(index > 0);
-                next_button.setEnabled(index < usedIndices.size() - 1);
                 playSong(songPaths.get(usedIndices.get(index)), index);
             }
         });
@@ -155,7 +153,7 @@ final public class PlaylistGUI extends JFrame {
         blendButton.setEnabled(false);
         blendButton.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
-                final int index = myShuffle.getSelectedIndex();
+                final int index = getShuffleIndex(myShuffle);
                 if (index == -1) {
                     String message = "No song has been selected. " +
                                      "Please select one before playing.";
@@ -166,61 +164,52 @@ final public class PlaylistGUI extends JFrame {
                 }
 
                 synchronized (PlaylistGUI.this) {
-                    if (multimap_size.get() > 0) {
-                        repeat.setEnabled(false);
-                        repeat.setSelected(false);
-                        cont_play.setEnabled(false);
-                        cont_play.setSelected(false);
-                        prev_button.setEnabled(false);
-                        next_button.setEnabled(false);
-                    } else {
-                        prev_button.setEnabled(index > 0);
-                        next_button.setEnabled(index < usedIndices.size() - 1);
-                    }
                     playSong(songPaths.get(usedIndices.get(index)), index);
-                }                
+                }
             }
         });
 
         stopButton.setEnabled(false);
         stopButton.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
-                 final int index = myShuffle.getSelectedIndex();
-                 if (index == -1) {
-                     String message = "No song has been selected. " +
-                                      "Please select one before stopping.";
-                     JOptionPane.showMessageDialog(PlaylistGUI.this, message,
-                                                   "No Song Selected",
-                                                   JOptionPane.ERROR_MESSAGE);
-                     return ;
-                 }
+                final int index = getShuffleIndex(myShuffle);
+                if (index == -1) {
+                    String message = "No song has been selected. " +
+                                     "Please select one before stopping.";
+                    JOptionPane.showMessageDialog(PlaylistGUI.this, message,
+                                                  "No Song Selected",
+                                                  JOptionPane.ERROR_MESSAGE);
+                    return ;
+                }
 
-                 closeSong(songPaths.get(usedIndices.get(index)));
-             }
-         });
+                synchronized (PlaylistGUI.this) {
+                    closeSong(songPaths.get(usedIndices.get(index)));
+                }
+            }
+        });
 
         stopAllButton.setEnabled(false);
         stopAllButton.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
                 closeSongs();
-                repeat.setEnabled(true);
-                cont_play.setEnabled(true);
-                prev_button.setEnabled(false);
-                next_button.setEnabled(false);
             }
         });
 
         prev_button.setEnabled(false);
         prev_button.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
-                final MP3 current_song = playingMP3s.values().iterator().next().peek();
-                final int prev_index = current_song.shuffle_index - 1;
+                final MP3 current_song;
+                synchronized (PlaylistGUI.this) {
+                    current_song = playingMP3s.values().iterator().next().peek();
+                    if (current_song == null) {
+                        return ;
+                    }
+                    playingMP3s = new HashMap<String, Queue<MP3>>();
+                    multimap_size = 0;
+                }
                 current_song.close();
-                playingMP3s = Collections.synchronizedMap(
-                                  new HashMap<String, Queue<MP3>>());
-                multimap_size = new AtomicInteger();
-                prev_button.setEnabled(prev_index > 0);
-                next_button.setEnabled(prev_index < usedIndices.size() - 1);
+
+                final int prev_index = current_song.shuffle_index - 1;
                 playSong(songPaths.get(usedIndices.get(prev_index)), prev_index);
                 myShuffle.setSelectedIndex(prev_index);
             }
@@ -229,25 +218,31 @@ final public class PlaylistGUI extends JFrame {
         next_button.setEnabled(false);
         next_button.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
-                final MP3 current_song = playingMP3s.values().iterator().next().peek();
-                final int next_index = current_song.shuffle_index + 1;
+                final MP3 current_song;
+                synchronized (PlaylistGUI.this) {
+                    current_song = playingMP3s.values().iterator().next().peek();
+                    if (current_song == null) {
+                        return ;
+                    }
+                    playingMP3s = new HashMap<String, Queue<MP3>>();
+                    multimap_size = 0;
+                }
                 current_song.close();
-                playingMP3s = Collections.synchronizedMap(
-                                  new HashMap<String, Queue<MP3>>());
-                multimap_size = new AtomicInteger();
-                prev_button.setEnabled(next_index > 0);
-                next_button.setEnabled(next_index < usedIndices.size() - 1);
+
+                final int next_index = current_song.shuffle_index + 1;
                 playSong(songPaths.get(usedIndices.get(next_index)), next_index);
                 myShuffle.setSelectedIndex(next_index);
             }
         });
 
+        repeat.setEnabled(false);
         repeat.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
                 cont_play.setSelected(false);
             }
         });
 
+        cont_play.setEnabled(false);
         cont_play.addActionListener(new ActionListener() {
             final public void actionPerformed(ActionEvent e) {
                 repeat.setSelected(false);
@@ -305,6 +300,10 @@ final public class PlaylistGUI extends JFrame {
     }
 
     /* Series of getters and setters. */
+    final private synchronized int getShuffleIndex(JList<String> shuffle) {
+        return shuffle.getSelectedIndex();
+    }
+
     final public synchronized boolean isRepeatSelected() {
         return repeat.isSelected();
     }
@@ -329,54 +328,78 @@ final public class PlaylistGUI extends JFrame {
         myShuffle.setSelectedIndex(shuffle_index);
     }
 
-    /* Plays one song. Runtime: O(1). */
+    /* Plays one song, and adjusts GUI. Runtime: O(1). */
     final public void playSong(final String path, final int shuffle_index) {
         final MP3 newmp3 = new MP3(path, shuffle_index);
         Queue<MP3> sameSong = playingMP3s.get(path);
         if (sameSong == null) {
-            sameSong = new ConcurrentLinkedQueue<MP3>();
+            sameSong = new LinkedList<MP3>();
             playingMP3s.put(path, sameSong);
         }
         sameSong.add(newmp3);
-        multimap_size.getAndIncrement();
         newmp3.play(this);
+
+        if (++multimap_size > 1) {
+            repeat.setEnabled(false);
+            repeat.setSelected(false);
+            cont_play.setEnabled(false);
+            cont_play.setSelected(false);
+            prev_button.setEnabled(false);
+            next_button.setEnabled(false);
+        } else {
+            prev_button.setEnabled(!wasShuffled && shuffle_index > 0);
+            next_button.setEnabled(!wasShuffled &&
+                    shuffle_index < usedIndices.size() - 1);
+        }
     }
 
-    /* Stops one song. If the selected song to stop has multiple
+    /* Stops one song, and adjusts the GUI accordingly.
+     * If the selected song to stop has multiple
      * instances playing, stop the least recent. Runtime: O(1). 
      */
-    final public synchronized void closeSong(final String path) {
+    final public boolean closeSong(final String path) {
         if (playingMP3s.containsKey(path)) {
             final Queue<MP3> sameSongs = playingMP3s.get(path);
-            MP3 song = sameSongs.remove();
-            song.close();
+            sameSongs.remove().close();
             if (sameSongs.isEmpty()) {
                 playingMP3s.remove(path);
             }
 
-            switch (multimap_size.getAndDecrement()) {
-                case 1: prev_button.setEnabled(false);
-                        next_button.setEnabled(false);
+            switch (--multimap_size) {
+                case 0: wasShuffled = false;
                         repeat.setEnabled(true);
                         cont_play.setEnabled(true);
-                        return ;
-                case 2: repeat.setEnabled(true);
-                        cont_play.setEnabled(true);
-                        prev_button.setEnabled(song.shuffle_index > 0);
-                        next_button.setEnabled(song.shuffle_index < usedIndices.size() - 1);
+                        prev_button.setEnabled(false);
+                        next_button.setEnabled(false);
+                        return true;
+                case 1: repeat.setEnabled(!wasShuffled);
+                        cont_play.setEnabled(!wasShuffled);
+                        final int index = playingMP3s.values().iterator().next()
+                                .peek().shuffle_index;
+                        prev_button.setEnabled(!wasShuffled && index > 0);
+                        next_button.setEnabled(!wasShuffled &&
+                                index < usedIndices.size() - 1);
             }
+            return true;
         }
+        return false;
     }
 
-    /* Stops all songs. Runtime: O(n). */
-    final public void closeSongs() {
-        for (final Map.Entry<String, Queue<MP3>> entry : playingMP3s.entrySet()) {
+    /* Stops all songs, and adjusts GUI. Runtime: O(n). */
+    final public synchronized void closeSongs() {
+        for (Map.Entry<String, Queue<MP3>> entry : playingMP3s.entrySet()) {
             for (final MP3 song : entry.getValue()) {
                 song.close();
             }
         }
-        playingMP3s = Collections.synchronizedMap(new HashMap<String, Queue<MP3>>());
-        multimap_size = new AtomicInteger();
+        playingMP3s = new HashMap<String, Queue<MP3>>();
+        multimap_size = 0;
+        wasShuffled = false;
+
+        repeat.setEnabled(true);
+        cont_play.setEnabled(true);
+        prev_button.setEnabled(false);
+        next_button.setEnabled(false);
     }
 
     /* Reads exported playlist file. */
@@ -556,14 +579,14 @@ final public class PlaylistGUI extends JFrame {
         final int[] lengths = new int[end.length];
         for (int i = 0, start = 0; i < end.length; ++i) {
             final int length = end[i] - start;
+            lengths[i] = length;
             unusedIndices[i] = new int[length];
             for (int j = 0; start < end[i]; ++j) {
                 unusedIndices[i][j] = start++;
             }
-            lengths[i] = length;
         }
 
-        // Creates shuffle
+        /* Creates shuffle. Runtime: O(n), where n is number of songs in shuffle. */
         final DefaultListModel<String> listModel = new DefaultListModel<String>();
         for (int q = 0, emptyGenres = 0; q < num_songs;) {
             double acc = 0.0;
