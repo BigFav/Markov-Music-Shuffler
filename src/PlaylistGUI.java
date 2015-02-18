@@ -551,9 +551,9 @@ final public class PlaylistGUI extends JFrame {
         int index;
         final Iterator<String> genreItr = genres.keySet().iterator();
         if (startG.equals("")) {
-        	// Randomly select a genre, if one wasn't given
-        	index = rand.nextInt(markov.length);
-        	for (int i = 0; i < index; ++i, genreItr.next());
+            // Randomly select a genre, if one wasn't given
+            index = rand.nextInt(markov.length);
+            for (int i = 0; i < index; ++i, genreItr.next());
             startG = genreItr.next();
         } else if (!genres.containsKey(startG)) {
             String message = "Genre not found in playlist, please " +
@@ -584,11 +584,11 @@ final public class PlaylistGUI extends JFrame {
         /* Creates shuffle. Runtime: O(q), where q is number of songs in shuffle. */
         final DefaultListModel<String> listModel = new DefaultListModel<String>();
         for (int q = 0, emptyGenres = 0; q < num_songs; ++q) {
-        	int i = -1;
+            int i = -1;
 
-        	// "Pick" genre based on probabilities and random number.
+            // "Pick" genre based on probabilities and random number.
             final double randDouble = rand.nextDouble();
-        	for (double acc = 0.0; randDouble >= acc; acc += markov[index][++i]);
+            for (double acc = 0.0; randDouble >= acc; acc += markov[index][++i]);
 
             /* Pick random element in array to prevent the same
              * shuffle order of songs for each genre. */
