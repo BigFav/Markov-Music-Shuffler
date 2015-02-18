@@ -5,7 +5,6 @@ import java.io.FileReader;
 import java.io.InputStreamReader;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.util.Arrays;
 import java.util.Iterator;
 import java.util.Queue;
 import java.util.LinkedList;
@@ -14,6 +13,8 @@ import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -38,7 +39,7 @@ final public class PlaylistGUI extends JFrame {
     private List<String> songPaths;
     private List<String> ogPlaylist;                // List of all songs in playlist
     private List<Integer> usedIndices;
-    private Map<String, Integer> genres;
+    private SortedMap<String, Integer> genres;      // Assuming playlist is sorted by genre
     private Map<String, Queue<MP3>> playingMP3s;    // Bootleg multimap
     private int multimap_size;
     private boolean wasShuffled;
@@ -51,7 +52,7 @@ final public class PlaylistGUI extends JFrame {
         songPaths = new ArrayList<String>();
         ogPlaylist = new ArrayList<String>();
         usedIndices = new ArrayList<Integer>();
-        genres = new HashMap<String, Integer>();
+        genres = new TreeMap<String, Integer>();
         playingMP3s = new HashMap<String, Queue<MP3>>();
         multimap_size = 0;
         wasShuffled = false;
@@ -126,7 +127,8 @@ final public class PlaylistGUI extends JFrame {
                     }
                     prev_button.setEnabled(false);
                     next_button.setEnabled(false);
-                    shuffleSongs(playlistPathField.getText(), startGenre.getText(),
+                    shuffleSongs(playlistPathField.getText(),
+                    		     startGenre.getText().toUpperCase(),
                                  markovPathField.getText(), num_songs);
                 }
             }
@@ -254,12 +256,12 @@ final public class PlaylistGUI extends JFrame {
         myShuffle.setLayoutOrientation(JList.VERTICAL);
         myShuffle.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         JScrollPane listScroller = new JScrollPane(myShuffle);
-        listScroller.setPreferredSize(new Dimension(250, 295));
+        
 
         // For layout purposes, put the buttons in a separate panel
         JPanel topPanel = new JPanel(new GridLayout(6,1));
         topPanel.add(new JLabel("  Instructions for formating input playlist"));
-        topPanel.add(new JLabel("  Step 1: Sort your iTunes playlist by genre."));
+        topPanel.add(new JLabel("  Step 1: Sort your playlist by genre."));
         topPanel.add(new JLabel("  Step 2: Right-click the playlist, then Export..."));
         topPanel.add(new JLabel("  Step 3: Save as a text file."));
         topPanel.add(new JLabel("  Step 4: Save Markov chain with the genre " +
@@ -292,11 +294,12 @@ final public class PlaylistGUI extends JFrame {
         add(mainPanel, BoxLayout.Y_AXIS);
         add(listScroller, BorderLayout.SOUTH);
 
-        setTitle("Markov Music Shuffler");
-        setPreferredSize(new Dimension(565, 573));
-        setResizable(false);
-        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
         pack();
+        setResizable(false);
+        setSize(new Dimension(565, 573));
+        setTitle("Markov Music Shuffler");
+        listScroller.setPreferredSize(new Dimension(563, 295));
+        setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
     }
 
     /* Series of getters and setters. */
@@ -355,7 +358,7 @@ final public class PlaylistGUI extends JFrame {
 
     /* Stops one song, and adjusts the GUI accordingly.
      * If the selected song to stop has multiple
-     * instances playing, stop the least recent. Runtime: O(1). 
+     * instances playing, stop the least recent. Runtime: O(1).
      */
     final public boolean closeSong(final String path) {
         if (playingMP3s.containsKey(path)) {
@@ -408,7 +411,7 @@ final public class PlaylistGUI extends JFrame {
             songPaths = new ArrayList<String>();
             ogPlaylist = new ArrayList<String>();
             usedIndices = new ArrayList<Integer>();
-            genres = new HashMap<String, Integer>();
+            genres = new TreeMap<String, Integer>();
         }
         try (BufferedReader br = new BufferedReader(new InputStreamReader(
                                     new FileInputStream(playlist), "UTF-16"))) {
@@ -446,7 +449,7 @@ final public class PlaylistGUI extends JFrame {
                                lineSplits[1] +         // Artist exists?
                                "         " +
                                lineSplits[5]);
-                genres.put(lineSplits[5], i);
+                genres.put(lineSplits[5].toUpperCase(), i);
                 songPaths.add(lineSplits[26]);
             }
         } catch (UnsupportedEncodingException e) {
@@ -475,10 +478,9 @@ final public class PlaylistGUI extends JFrame {
         if (!readPlaylist(playlistFilename)) {
             return ;
         }
-        if ((num_songs > ogPlaylist.size()) ||
-                num_songs <= 0) {
+        if ((num_songs > ogPlaylist.size()) || num_songs <= 0) {
             String message = "Invalid number! Must be equal or less than " +
-                             "the number of songs in your playlist and " +
+                             "the number of songs in your playlist, and " +
                              "greater than 0. May also be a file format " +
                              "problem, try re-exporting playlist if " +
                              "confident that the number is correct.";
@@ -491,19 +493,12 @@ final public class PlaylistGUI extends JFrame {
         final Random rand = new Random();
         final double markov[][] = new double[genres.size()][genres.size()];
         if (markovFilename.equals("")) {
-            /* Creates random markov chain based on genres from playlist;
-             * very unfair to later genres if there are too many. */
+            /* Creates even Markov chain. The random variable
+             * below will be the random factor in this shuffle. */
+            double evenDistribution = 1.0 / markov.length;
             for (int row = 0; row < markov.length; ++row) {
-                double max = 1.0;
-                double random = 0.0;
                 for (int col = 0; col < markov.length; ++col) {
-                    if ((col + 1 == markov.length) || (max == 0)) {
-                        random = max;
-                    } else {
-                        random = max * rand.nextDouble();
-                        max -= random;
-                    }
-                    markov[row][col] = random;
+                    markov[row][col] = evenDistribution;
                 }
             }
         } else {
@@ -520,6 +515,7 @@ final public class PlaylistGUI extends JFrame {
                             total_prob += prob;
                         }
                     }
+                    // Catches floating-point addition errors
                     if ((total_prob < 0.99999) || (total_prob > 1.0)) {
                         String message = "All probabilities do not sum to 1.";
                         JOptionPane.showMessageDialog(this, message,
@@ -552,11 +548,13 @@ final public class PlaylistGUI extends JFrame {
             }
         }
 
-        int index = -1;
+        int index;
         final Iterator<String> genreItr = genres.keySet().iterator();
         if (startG.equals("")) {
-            index = 0;
-            startG = genreItr.next();  // Pick a genre, if one wasn't given
+        	// Randomly select a genre, if one wasn't given
+        	index = rand.nextInt(markov.length);
+        	for (int i = 0; i < index; ++i, genreItr.next());
+            startG = genreItr.next();
         } else if (!genres.containsKey(startG)) {
             String message = "Genre not found in playlist, please " +
                              "enter a genre in your playlist.";
@@ -564,15 +562,12 @@ final public class PlaylistGUI extends JFrame {
                                           "Invalid Genre",
                                           JOptionPane.ERROR_MESSAGE);
             return ;
-        }
-
-        // Find the index of user inputted genre
-        if (index != 0) {
+        } else {
+            // Find the index of user inputted genre
             for (index = 0; !startG.equals(genreItr.next()); ++index);
         }
 
         final Integer[] end = genres.values().toArray(new Integer[markov.length]);
-        Arrays.sort(end);              // Assuming playlist is sorted by genre
 
         // Create array of arrays for each genre's range of indices
         final int[][] unusedIndices = new int[end.length][];
@@ -586,45 +581,42 @@ final public class PlaylistGUI extends JFrame {
             }
         }
 
-        /* Creates shuffle. Runtime: O(n), where n is number of songs in shuffle. */
+        /* Creates shuffle. Runtime: O(q), where q is number of songs in shuffle. */
         final DefaultListModel<String> listModel = new DefaultListModel<String>();
-        for (int q = 0, emptyGenres = 0; q < num_songs;) {
-            double acc = 0.0;
+        for (int q = 0, emptyGenres = 0; q < num_songs; ++q) {
+        	int i = -1;
+
+        	// "Pick" genre based on probabilities and random number.
             final double randDouble = rand.nextDouble();
-            for (int i = 0; i < end.length; ++i) {
-                acc += markov[index][i];
-                if (randDouble <= acc) {
-                    /* Pick random element in array to prevent the same
-                     * shuffle order of songs for each genre. */
-                    final int randIndex = rand.nextInt(lengths[i]);
-                    final int length = --lengths[i];
-                    final int playlistIndex = unusedIndices[i][randIndex];
-                    unusedIndices[i][randIndex] = unusedIndices[i][length];
+        	for (double acc = 0.0; randDouble >= acc; acc += markov[index][++i]);
 
-                    // "Pick" song from genre
-                    usedIndices.add(playlistIndex);
+            /* Pick random element in array to prevent the same
+             * shuffle order of songs for each genre. */
+            final int randIndex = rand.nextInt(lengths[i]);
+            final int length = --lengths[i];
+            final int playlistIndex = unusedIndices[i][randIndex];
+            unusedIndices[i][randIndex] = unusedIndices[i][length];
 
-                    // Map GUI index to songPath structure index
-                    listModel.addElement(ogPlaylist.get(playlistIndex));
-                    index = i;
-                    ++q;
+            // "Pick" song from genre
+            usedIndices.add(playlistIndex);
 
-                    // Distribute probability of genre with no songs left
-                    if (length == 0) {
-                        ++emptyGenres;
-                        for (int j = 0; j < markov.length; ++j) {
-                            final double probSplit = markov[j][i] /
-                                                      (markov.length-emptyGenres);
-                            for (int k = 0; k < markov.length; ++k) {
-                                if (k == i) {
-                                    markov[j][k] = 0.0;
-                                } else if (markov[j][k] != 0.0) {
-                                    markov[j][k] += probSplit;
-                                }
-                            }
+            // Map GUI index to songPath structure index
+            listModel.addElement(ogPlaylist.get(playlistIndex));
+            index = i;
+
+            // Distribute probability of genre with no songs left
+            if (length == 0) {
+                ++emptyGenres;
+                for (int j = 0; j < markov.length; ++j) {
+                    final double probSplit = markov[j][i] /
+                                                (markov.length - emptyGenres);
+                    for (int k = 0; k < markov.length; ++k) {
+                        if (k == i) {
+                            markov[j][k] = 0.0;
+                        } else if (markov[j][k] != 0.0) {
+                            markov[j][k] += probSplit;
                         }
                     }
-                    break;
                 }
             }
         }

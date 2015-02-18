@@ -4,7 +4,8 @@ This creates a music shuffle based on a Markov chain over the genres.
 I utilize the
 <a href="http://www.javazoom.net/javalayer/sources.html">JLayer MP3 library</a>
 in order to play the MP3s; more on this can be seen in the MP3.java file.
-Requires iTunes of some sort; the instructions pertain to an iTunes playlist.
+Requires iTunes of some sort; the instructions pertain to an iTunes playlist,
+however if you know the file format you can recreate a playlist file.
 
 ## What it Should Look Like
 
@@ -24,3 +25,10 @@ Requires iTunes of some sort; the instructions pertain to an iTunes playlist.
 * Next: Plays the next song in the shuffle.
 * Continuous Play: Plays the shuffle songs in sequence, one after the other.
 * Repeat: Repeats the song.
+
+## Markov Chain
+
+The file format for the Markov chain should simply align the genres in alphabetical
+order; columns and rows should be in alphabetical ascending order for genres. As
+shown in the picture, the file expects probabilities ranging from 0.0 to 1.0, and
+the probabilities should sum to 1.0.
