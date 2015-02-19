@@ -7,14 +7,13 @@ import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.util.Iterator;
 import java.util.Queue;
+import java.util.LinkedHashMap;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.Random;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.awt.BorderLayout;
 import java.awt.Dimension;
 import java.awt.GridLayout;
@@ -39,7 +38,7 @@ final public class PlaylistGUI extends JFrame {
     private List<String> songPaths;
     private List<String> ogPlaylist;                // List of all songs in playlist
     private List<Integer> usedIndices;
-    private SortedMap<String, Integer> genres;      // Assuming playlist is sorted by genre
+    private Map<String, Integer> genres;
     private Map<String, Queue<MP3>> playingMP3s;    // Bootleg multimap
     private int multimap_size;
     private boolean wasShuffled;
@@ -52,7 +51,7 @@ final public class PlaylistGUI extends JFrame {
         songPaths = new ArrayList<String>();
         ogPlaylist = new ArrayList<String>();
         usedIndices = new ArrayList<Integer>();
-        genres = new TreeMap<String, Integer>();
+        genres = new LinkedHashMap<String, Integer>();
         playingMP3s = new HashMap<String, Queue<MP3>>();
         multimap_size = 0;
         wasShuffled = false;
@@ -128,7 +127,7 @@ final public class PlaylistGUI extends JFrame {
                     prev_button.setEnabled(false);
                     next_button.setEnabled(false);
                     shuffleSongs(playlistPathField.getText(),
-                    		     startGenre.getText().toUpperCase(),
+                                 startGenre.getText().toUpperCase(),
                                  markovPathField.getText(), num_songs);
                 }
             }
@@ -411,7 +410,7 @@ final public class PlaylistGUI extends JFrame {
             songPaths = new ArrayList<String>();
             ogPlaylist = new ArrayList<String>();
             usedIndices = new ArrayList<Integer>();
-            genres = new TreeMap<String, Integer>();
+            genres = new LinkedHashMap<String, Integer>();  // Assuming playlist is sorted by genre
         }
         try (BufferedReader br = new BufferedReader(new InputStreamReader(
                                     new FileInputStream(playlist), "UTF-16"))) {
